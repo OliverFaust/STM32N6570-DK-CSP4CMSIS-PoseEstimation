@@ -1,3 +1,224 @@
+# STM32N6570-DK-CSP4CMSIS-PoseEstimation
+
+[STM32N6570-DK-CSP4CMSIS-PoseEstimation](https://github.com/OliverFaust/STM32N6570-DK-CSP4CMSIS-PoseEstimation),
+branch `csp4cmsis`, is an unofficial fork of STMicroelectronics'
+[x-cube-n6-ai-multi-pose-estimation](https://github.com/STMicroelectronics/x-cube-n6-ai-multi-pose-estimation)
+v2.2.0. It replaces the application's FreeRTOS threads with a
+[CSP4CMSIS](https://github.com/OliverFaust/CSP4CMSIS) process network and adds a
+RAM trace of that network. It is not affiliated with, reviewed or endorsed by
+STMicroelectronics. ST's README follows [below](#sts-readme), unchanged.
+
+## What this fork adds
+
+- **A CSP process network** (`CSP/application.cpp`) in place of the four
+  threads of ST's `Src/app.c`. Six CSP4CMSIS processes, all at one priority,
+  form the pipeline isp → nn → nn_2 → pp → dp, with an NPU concentrator
+  process beside nn and nn_2:
+  - The camera's vsync interrupt writes a one-slot KeepNewest channel. isp
+    reads it, updates the camera's ISP and sends a time-stamped frame message
+    to nn.
+  - nn and nn_2 both request the NPU from the concentrator, which serves the
+    two request channels with a fair ALT (`fairSelect()`). Only nn_2's request
+    runs the inference (`NN_Execute_Inference()`); nn's is answered without
+    one. After its reply, nn passes the frame on to nn_2. After its reply,
+    nn_2 sends the inference time and the frame period to pp.
+  - pp runs the post-processing and sends the result to dp through a one-slot
+    KeepNewest channel. dp draws it on the display and every 5 s prints a
+    stats line on the console (VCP).
+  - The other seven channels (isp → nn → nn_2 → pp and the request and reply
+    channels between nn, nn_2 and the concentrator) are rendezvous channels.
+- **Static allocation only.** FreeRTOS already runs without a heap in ST's
+  v2.2.0. CSP4CMSIS creates every RTOS object statically, and newlib's heap
+  (used by the C++ runtime) is bounded: `_sbrk()` fails beyond `_eheap`.
+- **DebugTrace**, a second build configuration: CSP4CMSIS's RAM ring trace
+  backend records every CSP event and the RTOS task switches into a 256 KB
+  ring (16384 records with time stamps from DWT_CYCCNT). The debugger reads
+  the ring out, and CSP4CMSIS's tools decode it and check it against the
+  library's formal models.
+- **Tools** (`CSP/tools/`) for running and tracing in development boot.
+
+The library is the git submodule `Lib/CSP4CMSIS`, on CSP4CMSIS's
+`dev/tracing` branch. That branch is not a release: its API is identical to
+CSP4CMSIS 3.1.0, but the trace format and the ring backend are experimental
+and may change.
+
+ST's files changed by this fork, and why:
+
+| File | Change |
+|:-----|:-------|
+| `Src/app.c` | The thread bodies become stage functions the processes call; the vsync callback signals the network; `app_run()` starts the network instead of the four threads |
+| `Inc/app.h` | `display_info_t` (and the tracker types it uses) moved here from `app.c`: it is the message from pp to dp |
+| `Src/main.c` | `osKernelInitialize()` / `osKernelStart()` (CMSIS-RTOS2) around the main thread |
+| `Inc/FreeRTOSConfig.h` | `configUSE_OS2_THREAD_FLAGS 1` (CSP4CMSIS uses thread flags); in DebugTrace only, the tick hook and the task hooks of the trace |
+| `Lib/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os2.c` | Now built. `IS_IRQ_MASKED()` also tests BASEPRI on Armv8.1-M (Cortex-M55); see the notice in the file |
+| `Gcc/STM32N657xx.ld`, `Gcc/Src/syscalls.c` | Newlib heap of 4 KB, ending at `_eheap`; a bounded `_sbrk()` |
+| `STM32CubeIDE/.project`, `.cproject` | `CSP/`, the library and `cmsis_os2.c` in the build; C++ settings; the DebugTrace configuration |
+
+This branch supports the **STM32CubeIDE build only**. ST's EWARM project and
+Makefile are still there, unchanged, but they do not build the CSP4CMSIS
+sources.
+
+## What you need
+
+- An STM32N6570-DK (MB1939) with the IMX335 camera (MB1854B), powered through
+  the ST-LINK USB-C connector (CN6), as in ST's README.
+- [STM32CubeIDE](https://www.st.com/en/development-tools/stm32cubeide.html) 2.1.0
+  (it includes GNU Tools for STM32 14.3.rel1).
+- The STM32CubeN6 drivers (v1.3.0): they come with ST's repository in
+  `STM32Cube_FW_N6/`, under ST's licence terms (`LICENSE.md`). You do not
+  need to install the STM32CubeN6 package separately for this build. By using
+  them you accept ST's terms.
+- The pose estimation model, generated and in the board's external flash
+  **before** you run anything: see "Model" below.
+- For tracing: Python 3, CMSIS-Toolbox `eventlist` (to decode), and
+  optionally [ProB](https://prob.hhu.de/) `probcli` (to check against the
+  models); see `Lib/CSP4CMSIS/tools/trace/README.md`.
+
+## Model
+
+Like ST's v2.2.0, this repository contains no network code and no weights.
+They are generated from the YOLOv8 pose model, which is AGPL-3.0, so read
+ST's licence note in the instructions first. Follow ST's instructions,
+[Download and deploy the model](Doc/Download-and-deploy-model.md):
+
+1. Download the model.
+2. Generate the network code and weights with ST Edge AI 3.0.0
+   (`Model/generate-n6-model.sh`).
+3. Program `Model/network_data.hex` into the external flash with
+   STM32CubeProgrammer.
+
+The fork changes nothing in `Model/`. The application reads the weights
+from external flash at run time, so they must be there before the first run.
+Generated files stay local (do not commit them).
+
+## Clone and build
+
+```bash
+git clone --recurse-submodules -b csp4cmsis https://github.com/OliverFaust/STM32N6570-DK-CSP4CMSIS-PoseEstimation.git
+cd STM32N6570-DK-CSP4CMSIS-PoseEstimation
+```
+
+(An existing clone: `git submodule update --init`.)
+
+Generate the model (above), then open `STM32CubeIDE/.project` in
+STM32CubeIDE and build **Debug** or **DebugTrace**. Or build without the IDE:
+
+```bash
+<STM32CubeIDE>/headless-build.sh -data <new workspace directory> \
+  -import STM32CubeIDE -build x-cube-n6-ai-multi-pose-estimation/Debug
+```
+
+(`-build x-cube-n6-ai-multi-pose-estimation/DebugTrace` for the trace build;
+the Eclipse project keeps ST's name.)
+The project finds the library through the path variable `CSP4CMSIS_ROOT`,
+which points at `Lib/CSP4CMSIS` relative to the project; nothing else needs
+configuring.
+
+## Run (development boot)
+
+Set both boot switches to the right (development mode, BOOT1 = 1) and power
+the board. Then you can run from the IDE (Run or Debug button), or use the
+scripts. These load the image into RAM through the ST-LINK GDB server and
+run it; they write neither the external flash nor the OTP fuses (see
+`Fuse_Programming()` below).
+
+```bash
+export STLINK_SN=<the DK's ST-LINK serial number>   # STM32_Programmer_CLI -l
+export CUBEIDE=<STM32CubeIDE installation directory>
+CSP/tools/run_dev.sh STM32CubeIDE/Debug/x-cube-n6-ai-multi-pose-estimation.elf 40
+```
+
+The console (VCP, 115200 8N1) shows ST's banner, then a stats line every 5 s:
+
+    stats fps 30.30 inf 32ms cpu 38.4%
+
+`fps` is 1000 divided by the period of the last frame (between the time
+stamps isp gave two consecutive frames, in whole milliseconds), so it shows
+single-frame values such as 29.41 (34 ms) and 30.30 (33 ms), not an average.
+`inf` is that frame's inference time, `cpu` ST's CPU load over the last
+second.
+
+Only one board connected? Still set `STLINK_SN`: the scripts never guess a
+probe. `VCP=<device>` overrides the serial port (default on Linux: the
+ST-LINK's `/dev/serial/by-id` entry).
+
+## Trace
+
+```bash
+export EVENTLIST=<path to CMSIS-Toolbox eventlist>
+export PROBCLI=<path to probcli>        # optional: proofs
+RING_POLICY=stop CSP_TOOLS=Lib/CSP4CMSIS \
+  CSP/tools/trace_dev.sh STM32CubeIDE/DebugTrace/x-cube-n6-ai-multi-pose-estimation.elf 10
+```
+
+This loads and runs DebugTrace for 10 s, then interrupts it and dumps the
+ring. `RING_POLICY=stop` keeps the first 16384 records from boot; without
+it, the ring keeps the newest records. With `CSP_TOOLS` set, the script then
+decodes the dump. It checks the trace against the CSP4CMSIS models
+(`csp_trace.py`), with `CSP/tools/isr_writers.json` naming the vsync
+interrupt as the one interrupt writer, and with `PROBCLI` set it proves the
+checks. The output directory (`OUT`, default: a new temporary directory)
+holds the dump, the decoded events, a Perfetto trace (`trace.json`, open it
+locally in the Perfetto UI) and the conformance report (`conf/`).
+
+## Results (STM32N6570-DK, 800 MHz, development boot)
+
+Measured with this branch, built from a fresh clone as described above, each
+configuration run for 60 s (11 stats lines):
+
+- **Debug:** 29.41-30.30 fps (frame periods of 33-34 ms; the camera runs at
+  30 fps), inference 32 ms, CPU load 38.3-38.4 %.
+- **DebugTrace:** 28.57-31.25 fps (frame periods of 32-35 ms), inference
+  32-33 ms, CPU load 38.2-39.9 %. Inference and CPU load are the same as in
+  Debug; the single-frame periods spread more.
+- **Conformance on silicon:** a DebugTrace capture from boot
+  (`RING_POLICY=stop`: the first 16384 records, about 3.2 s) has 10
+  projections: the 7 rendezvous channels, the concentrator's fair ALT and the
+  2 KeepNewest channels. All trace checks (about 290 per capture; the count
+  varies with timing) and the 6 stable-failure checks pass, proved with ProB.
+  All 10 mutants (the trace with one injected fault) are caught. 85.7 % of
+  the recorded CSP events lie in a checked projection.
+
+## Fuse_Programming()
+
+`Src/app_fuseprogramming.c` and the call in `main.c` are ST's code, unchanged.
+At every boot, `Fuse_Programming()` reads OTP word 124 (`BSEC_HW_CONFIG_ID`).
+If bits 15 and 16 (`HSLV_VDDIO3`, `HSLV_VDDIO2`) are not set, it programs
+them, so that the xSPI pins can run at 200 MHz. **This is a one-time,
+irreversible change to the chip.** ST's README states it ("OTP fuses are set
+in this example").
+
+The scripts in `CSP/tools/` put a breakpoint on `HAL_BSEC_OTP_Program`, the
+HAL function that writes the fuses:
+
+- If the bits are already set (for example on a board that has run ST's
+  application), `Fuse_Programming()` returns without writing. The script
+  prints `run_dev: Fuse_Programming returned without programming OTP`
+  (`trace_dev: …` for `trace_dev.sh`) and runs the application.
+- If the breakpoint is hit, the script prints
+  `run_dev: HAL_BSEC_OTP_Program reached; resetting target, OTP not written`
+  (`trace_dev: …`), resets the target, ends the debug session and exits with
+  an error (`run_dev.sh` with status 2; `trace_dev.sh` prints
+  `trace_dev: target not released` and exits with status 1).
+
+So on a board whose bits are not yet set, the scripts will not run the
+application. The IDE's Run and Debug buttons have no such guard: they run
+ST's code, which programs the fuses. Whether to let ST's code program them,
+for example by running ST's prebuilt binary once as ST's README describes,
+is your decision.
+
+## Licences
+
+`CSP/` is this fork's code, MIT (`CSP/LICENSE`, Oliver Faust).
+`Lib/CSP4CMSIS` is the CSP4CMSIS library, MIT (Oliver Faust). Everything
+else is ST's or third-party code under the terms in `LICENSE.md` and in the
+files themselves. This fork does not change those terms. The changes to ST's
+files listed above are under ST's terms for those files.
+
+---
+
+<a id="sts-readme"></a>
+
 # x-cube-n6-ai-multi-pose-estimation Application
 
 Computer Vision application that run yolov8 pose estimation model on STM32N6570-DK board.

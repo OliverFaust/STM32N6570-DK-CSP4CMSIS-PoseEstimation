@@ -22,3 +22,5 @@
 | Lib/AI_Runtime                                | STMicroelectronics                        | SLA0044                                       |
 | Model                                         | STMicroelectronics                        | SLA0044                                       |
 | Binary                                        | STMicroelectronics, Ultralytics           | SLA0078                                       |
+| CSP                                           | Oliver Faust                              | MIT                                           |
+| Lib/CSP4CMSIS (git submodule)                 | Oliver Faust                              | MIT                                           |
