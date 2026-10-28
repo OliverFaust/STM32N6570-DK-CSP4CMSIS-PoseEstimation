@@ -1,0 +1,4 @@
+[submodule "Lib/CSP4CMSIS"]
+	path = Lib/CSP4CMSIS
+	url = https://github.com/OliverFaust/CSP4CMSIS.git
+	branch = dev/tracing

@@ -18,6 +18,10 @@
  *      Name:    cmsis_os2.c
  *      Purpose: CMSIS RTOS2 wrapper for FreeRTOS
  *
+ * Modified 2026 by Oliver Faust (CSP4CMSIS port): IS_IRQ_MASKED() also
+ * tests BASEPRI on Armv8.1-M Mainline (__ARM_ARCH_8_1M_MAIN__: Cortex-M55,
+ * Cortex-M85), as on Armv7-M and Armv8-M Mainline.
+ *
  *---------------------------------------------------------------------------*/
 #include <string.h>
 
@@ -46,13 +50,17 @@
 #ifndef __ARM_ARCH_8M_MAIN__
   #define __ARM_ARCH_8M_MAIN__    0
 #endif
+#ifndef __ARM_ARCH_8_1M_MAIN__
+  #define __ARM_ARCH_8_1M_MAIN__  0
+#endif
 #ifndef __ARM_ARCH_7A__
   #define __ARM_ARCH_7A__         0
 #endif
 
-#if   ((__ARM_ARCH_7M__      == 1U) || \
-       (__ARM_ARCH_7EM__     == 1U) || \
-       (__ARM_ARCH_8M_MAIN__ == 1U))
+#if   ((__ARM_ARCH_7M__        == 1U) || \
+       (__ARM_ARCH_7EM__       == 1U) || \
+       (__ARM_ARCH_8M_MAIN__   == 1U) || \
+       (__ARM_ARCH_8_1M_MAIN__ == 1U))
 #define IS_IRQ_MASKED()           ((__get_PRIMASK() != 0U) || (__get_BASEPRI() != 0U))
 #elif  (__ARM_ARCH_6M__      == 1U)
 #define IS_IRQ_MASKED()           (__get_PRIMASK() != 0U)

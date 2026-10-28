@@ -31,6 +31,7 @@
 #include "stm32n6xx_hal_rif.h"
 #include "FreeRTOS.h"
 #include "task.h"
+#include "cmsis_os2.h"
 
 UART_HandleTypeDef huart1;
 
@@ -278,12 +279,16 @@ static void CONSOLE_Config()
 static int main_freertos()
 {
   TaskHandle_t hdl;
+  osStatus_t ret;
+
+  ret = osKernelInitialize();
+  assert(ret == osOK);
 
   hdl = xTaskCreateStatic(main_thread_fct, "main", configMINIMAL_STACK_SIZE, NULL, tskIDLE_PRIORITY + 1,
                           main_thread_stack, &main_thread);
   assert(hdl != NULL);
 
-  vTaskStartScheduler();
+  osKernelStart();
   assert(0);
 
   return -1;

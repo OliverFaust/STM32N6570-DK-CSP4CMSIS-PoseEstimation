@@ -118,7 +118,7 @@ uint32_t TIM4_Get_Value(void);
 #define configUSE_OS2_THREAD_SUSPEND_RESUME  0
 #define configUSE_OS2_THREAD_ENUMERATE       0
 #define configUSE_OS2_EVENTFLAGS_FROM_ISR    0
-#define configUSE_OS2_THREAD_FLAGS           0
+#define configUSE_OS2_THREAD_FLAGS           1
 #define configUSE_OS2_TIMER                  0
 #define configUSE_OS2_MUTEX                  0
 

@@ -101,6 +101,9 @@
 									<listOptionValue builtIn="false" value="APP_HAS_PARALLEL_NETWORKS=0"/>
 									<listOptionValue builtIn="false" value="FEAT_FREERTOS"/>
 									<listOptionValue builtIn="false" value="TRACKER_MODULE"/>
+									<listOptionValue builtIn="false" value="USE_CUSTOM_SYSTICK_HANDLER_IMPLEMENTATION=1"/>
+									<listOptionValue builtIn="false" value="CSP4CMSIS_MAX_SYSCALL_INTERRUPT_PRIORITY=5"/>
+									<listOptionValue builtIn="false" value="CSP4CMSIS_DEVICE_HEADER=&quot;stm32n6xx.h&quot;"/>
 								</option>
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.option.includepaths.1227356004" name="Include paths (-I)" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.option.includepaths" useByScannerDiscovery="false" valueType="includePath">
 									<listOptionValue builtIn="false" value="../../Inc"/>
@@ -129,6 +132,10 @@
 									<listOptionValue builtIn="false" value="../../Lib/FreeRTOS/Source/include"/>
 									<listOptionValue builtIn="false" value="../../Lib/FreeRTOS/Source/portable/GCC/ARM_CM55_NTZ/non_secure"/>
 									<listOptionValue builtIn="false" value="../../Lib/tracker"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/Lib/csp4cmsis/inc}&quot;"/>
+									<listOptionValue builtIn="false" value="../../Lib/FreeRTOS/Source/CMSIS_RTOS_V2"/>
+									<listOptionValue builtIn="false" value="../../STM32Cube_FW_N6/Drivers/CMSIS/RTOS2/Include"/>
+									<listOptionValue builtIn="false" value="../../CSP"/>
 								</option>
 								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.option.otherflags.315856049" name="Other flags" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.option.otherflags" useByScannerDiscovery="true" valueType="stringList">
 									<listOptionValue builtIn="false" value=""/>
@@ -138,6 +145,65 @@
 							<tool id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.compiler.354471534" name="MCU G++ Compiler" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.compiler">
 								<option id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.compiler.option.debuglevel.1702727473" name="Debug level" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.compiler.option.debuglevel" useByScannerDiscovery="false" value="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.compiler.option.debuglevel.value.g3" valueType="enumerated"/>
 								<option id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.option.optimization.level.1870539105" name="Optimization level" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.option.optimization.level" useByScannerDiscovery="false" value="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.compiler.option.optimization.level.value.os" valueType="enumerated"/>
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.compiler.option.includepaths.1202124726" name="Include paths (-I)" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.compiler.option.includepaths" useByScannerDiscovery="false" valueType="includePath">
+									<listOptionValue builtIn="false" value="../../Inc"/>
+									<listOptionValue builtIn="false" value="../../Model"/>
+									<listOptionValue builtIn="false" value="../../STM32Cube_FW_N6/Drivers/STM32N6xx_HAL_Driver/Inc"/>
+									<listOptionValue builtIn="false" value="../../STM32Cube_FW_N6/Drivers/STM32N6xx_HAL_Driver/Inc/Legacy"/>
+									<listOptionValue builtIn="false" value="../../STM32Cube_FW_N6/Drivers/CMSIS/Device/ST/STM32N6xx/Include"/>
+									<listOptionValue builtIn="false" value="../../STM32Cube_FW_N6/Drivers/CMSIS/Include"/>
+									<listOptionValue builtIn="false" value="../../STM32Cube_FW_N6/Drivers/CMSIS/DSP/Include"/>
+									<listOptionValue builtIn="false" value="../../STM32Cube_FW_N6/Drivers/BSP/Components/Common"/>
+									<listOptionValue builtIn="false" value="../../STM32Cube_FW_N6/Drivers/BSP/STM32N6570-DK"/>
+									<listOptionValue builtIn="false" value="../../STM32Cube_FW_N6/Utilities/lcd"/>
+									<listOptionValue builtIn="false" value="../../STM32Cube_FW_N6/Drivers/BSP/Components/aps256xx"/>
+									<listOptionValue builtIn="false" value="../../Lib/AI_Runtime/Inc"/>
+									<listOptionValue builtIn="false" value="../../Lib/AI_Runtime/Npu/ll_aton"/>
+									<listOptionValue builtIn="false" value="../../Lib/AI_Runtime/Npu/Devices/STM32N6xx"/>
+									<listOptionValue builtIn="false" value="../../Lib/lib_vision_models_pp/lib_vision_models_pp/Inc"/>
+									<listOptionValue builtIn="false" value="../../Lib/ai-postprocessing-wrapper"/>
+									<listOptionValue builtIn="false" value="../../Lib/Camera_Middleware"/>
+									<listOptionValue builtIn="false" value="../../Lib/Camera_Middleware/sensors"/>
+									<listOptionValue builtIn="false" value="../../Lib/Camera_Middleware/sensors/imx335"/>
+									<listOptionValue builtIn="false" value="../../Lib/Camera_Middleware/sensors/vd55g1"/>
+									<listOptionValue builtIn="false" value="../../Lib/Camera_Middleware/sensors/vd6g"/>
+									<listOptionValue builtIn="false" value="../../Lib/Camera_Middleware/sensors/vd1943"/>
+									<listOptionValue builtIn="false" value="../../Lib/Camera_Middleware/ISP_Library/isp/Inc"/>
+									<listOptionValue builtIn="false" value="../../Lib/FreeRTOS/Source/include"/>
+									<listOptionValue builtIn="false" value="../../Lib/FreeRTOS/Source/portable/GCC/ARM_CM55_NTZ/non_secure"/>
+									<listOptionValue builtIn="false" value="../../Lib/tracker"/>
+									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/${ProjName}/Lib/csp4cmsis/inc}&quot;"/>
+									<listOptionValue builtIn="false" value="../../Lib/FreeRTOS/Source/CMSIS_RTOS_V2"/>
+									<listOptionValue builtIn="false" value="../../STM32Cube_FW_N6/Drivers/CMSIS/RTOS2/Include"/>
+									<listOptionValue builtIn="false" value="../../CSP"/>
+								</option>
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.compiler.option.definedsymbols.617759118" name="Define symbols (-D)" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.compiler.option.definedsymbols" useByScannerDiscovery="false" valueType="definedSymbols">
+									<listOptionValue builtIn="false" value="STM32N657xx"/>
+									<listOptionValue builtIn="false" value="USE_FULL_ASSERT"/>
+									<listOptionValue builtIn="false" value="USE_FULL_LL_DRIVER"/>
+									<listOptionValue builtIn="false" value="VECT_TAB_SRAM"/>
+									<listOptionValue builtIn="false" value="USE_IMX335_SENSOR"/>
+									<listOptionValue builtIn="false" value="USE_VD66GY_SENSOR"/>
+									<listOptionValue builtIn="false" value="USE_VD55G1_SENSOR"/>
+									<listOptionValue builtIn="false" value="USE_VD1943_SENSOR"/>
+									<listOptionValue builtIn="false" value="TX_MAX_PARALLEL_NETWORKS=1"/>
+									<listOptionValue builtIn="false" value="LL_ATON_PLATFORM=LL_ATON_PLAT_STM32N6"/>
+									<listOptionValue builtIn="false" value="LL_ATON_OSAL=LL_ATON_OSAL_FREERTOS"/>
+									<listOptionValue builtIn="false" value="LL_ATON_RT_MODE=LL_ATON_RT_ASYNC"/>
+									<listOptionValue builtIn="false" value="LL_ATON_SW_FALLBACK"/>
+									<listOptionValue builtIn="false" value="LL_ATON_DBG_BUFFER_INFO_EXCLUDED=1"/>
+									<listOptionValue builtIn="false" value="APP_HAS_PARALLEL_NETWORKS=0"/>
+									<listOptionValue builtIn="false" value="FEAT_FREERTOS"/>
+									<listOptionValue builtIn="false" value="TRACKER_MODULE"/>
+									<listOptionValue builtIn="false" value="CSP4CMSIS_MAX_SYSCALL_INTERRUPT_PRIORITY=5"/>
+									<listOptionValue builtIn="false" value="CSP4CMSIS_DEVICE_HEADER=&quot;stm32n6xx.h&quot;"/>
+								</option>
+								<option id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.compiler.option.languagestandard.1384299232" name="Language standard" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.compiler.option.languagestandard" useByScannerDiscovery="true" value="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.compiler.option.languagestandard.value.gnupp17" valueType="enumerated"/>
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.compiler.option.otherflags.510493520" name="Other flags" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.compiler.option.otherflags" useByScannerDiscovery="true" valueType="stringList">
+									<listOptionValue builtIn="false" value="-mthumb"/>
+									<listOptionValue builtIn="false" value="-mcpu=cortex-m55"/>
+								</option>
+								<inputType id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.compiler.input.cpp.2116938792" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.compiler.input.cpp"/>
 							</tool>
 							<tool id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.linker.1389572468" name="MCU GCC Linker" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.linker">
 								<option id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.linker.option.script.785869104" name="Linker Script (-T)" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.linker.option.script" value="../../Gcc/STM32N657xx.ld" valueType="string"/>
@@ -158,7 +224,26 @@
 									<additionalInput kind="additionalinput" paths="$(LIBS)"/>
 								</inputType>
 							</tool>
-							<tool id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.linker.190268460" name="MCU G++ Linker" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.linker"/>
+							<tool id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.linker.190268460" name="MCU G++ Linker" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.linker">
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.linker.option.directories.857616125" name="Library search path (-L)" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.linker.option.directories" valueType="libPaths">
+									<listOptionValue builtIn="false" value="../../Lib/AI_Runtime/Lib/GCC/ARMCortexM55"/>
+								</option>
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.linker.option.otherflags.1323309983" name="Other flags" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.linker.option.otherflags" valueType="stringList">
+									<listOptionValue builtIn="false" value="-u _printf_float -Wl,--no-warn-rwx-segments"/>
+								</option>
+								<option id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.linker.option.systemcalls.1465080606" name="System calls" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.linker.option.systemcalls" value="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.c.linker.option.systemcalls.value.minimalimplementation" valueType="enumerated"/>
+								<option id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.linker.option.script.1509213288" name="Linker Script (-T)" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.linker.option.script" value="../../Gcc/STM32N657xx.ld" valueType="string"/>
+								<option IS_BUILTIN_EMPTY="false" IS_VALUE_EMPTY="false" id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.linker.option.libraries.692488850" name="Libraries (-l)" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.linker.option.libraries" valueType="libs">
+									<listOptionValue builtIn="false" value="c"/>
+									<listOptionValue builtIn="false" value="m"/>
+									<listOptionValue builtIn="false" value="nosys"/>
+									<listOptionValue builtIn="false" value=":NetworkRuntime1100_CM55_GCC.a"/>
+								</option>
+								<inputType id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.linker.input.1898814558" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.cpp.linker.input">
+									<additionalInput kind="additionalinputdependency" paths="$(USER_OBJS)"/>
+									<additionalInput kind="additionalinput" paths="$(LIBS)"/>
+								</inputType>
+							</tool>
 							<tool id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.archiver.1679791098" name="MCU GCC Archiver" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.archiver"/>
 							<tool id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.size.2139620533" name="MCU Size" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.size"/>
 							<tool id="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.objdump.listfile.99378666" name="MCU Output Converter list file" superClass="com.st.stm32cube.ide.mcu.gnu.managedbuild.tool.objdump.listfile"/>

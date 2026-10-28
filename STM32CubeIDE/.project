@@ -29,8 +29,19 @@
 		<nature>com.st.stm32cube.ide.mcu.MCUSingleCpuProjectNature</nature>
 		<nature>org.eclipse.cdt.managedbuilder.core.managedBuildNature</nature>
 		<nature>org.eclipse.cdt.managedbuilder.core.ScannerConfigNature</nature>
+		<nature>org.eclipse.cdt.core.ccnature</nature>
 	</natures>
 	<linkedResources>
+		<link>
+			<name>CSP</name>
+			<type>2</type>
+			<locationURI>PARENT-1-PROJECT_LOC/CSP</locationURI>
+		</link>
+		<link>
+			<name>Lib/csp4cmsis</name>
+			<type>2</type>
+			<locationURI>CSP4CMSIS_ROOT/csp4cmsis</locationURI>
+		</link>
 		<link>
 			<name>Model/network.c</name>
 			<type>1</type>
@@ -195,6 +206,11 @@
 			<name>Lib/Camera_Middleware/sensors/cmw_vd66gy.c</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/Lib/Camera_Middleware/sensors/cmw_vd66gy.c</locationURI>
+		</link>
+		<link>
+			<name>Lib/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os2.c</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/Lib/FreeRTOS/Source/CMSIS_RTOS_V2/cmsis_os2.c</locationURI>
 		</link>
 		<link>
 			<name>Lib/FreeRTOS/Source/croutine.c</name>
@@ -562,4 +578,10 @@
 			<locationURI>PARENT-1-PROJECT_LOC/STM32Cube_FW_N6/Drivers/CMSIS/Device/ST/STM32N6xx/Source/Templates/gcc/startup_stm32n657xx.s</locationURI>
 		</link>
 	</linkedResources>
+	<variableList>
+		<variable>
+			<name>CSP4CMSIS_ROOT</name>
+			<value>$%7BPARENT-1-PROJECT_LOC%7D/Lib/CSP4CMSIS</value>
+		</variable>
+	</variableList>
 </projectDescription>

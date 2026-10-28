@@ -40,6 +40,7 @@
 #include "stai_network.h"
 #include "network.h"
 #include "utils.h"
+#include "app_application.h"
 
 #ifndef APP_VERSION_STRING
 #define APP_VERSION_STRING "dev"
@@ -80,24 +81,9 @@
 
 #ifdef TRACKER_MODULE
 typedef struct {
-  int is_valid;
-  float32_t x;
-  float32_t y;
-} trk_kp_t;
-
-typedef struct {
   trk_kp_t keyPoints[AI_POSE_PP_POSE_KEYPOINTS_NB];
   struct pkf_state pkf_states[AI_POSE_PP_POSE_KEYPOINTS_NB];
 } trk_tbox_ctx_t;
-
-typedef struct {
-  double cx;
-  double cy;
-  double w;
-  double h;
-  uint32_t id;
-  trk_kp_t keyPoints[AI_POSE_PP_POSE_KEYPOINTS_NB];
-} tbox_info;
 #endif
 
 typedef struct
@@ -130,28 +116,6 @@ typedef struct {
     uint32_t tick;
   } history[CPU_LOAD_HISTORY_DEPTH];
 } cpuload_info_t;
-
-typedef struct {
-  int32_t nb_detect;
-  mpe_pp_outBuffer_t detects[AI_MPE_YOLOV8_PP_MAX_BOXES_LIMIT];
-  int tracking_enabled;
-#ifdef TRACKER_MODULE
-  int tboxes_valid_nb;
-  tbox_info tboxes[AI_MPE_YOLOV8_PP_MAX_BOXES_LIMIT];
-#endif
-  uint32_t nn_period_ms;
-  uint32_t inf_ms;
-  uint32_t pp_ms;
-  uint32_t disp_ms;
-} display_info_t;
-
-typedef struct {
-  SemaphoreHandle_t update;
-  StaticSemaphore_t update_buffer;
-  SemaphoreHandle_t lock;
-  StaticSemaphore_t lock_buffer;
-  display_info_t info;
-} display_t;
 
 /* Globals */
 DECLARE_CLASSES_TABLE;
@@ -231,7 +195,6 @@ static int lcd_bg_buffer_capt_idx = 0;
 /* Lcd Foreground Buffer */
 static uint8_t lcd_fg_buffer[2][LCD_FG_WIDTH * LCD_FG_HEIGHT* 2] ALIGN_32 IN_PSRAM;
 static int lcd_fg_buffer_rd_idx;
-static display_t disp;
 static cpuload_info_t cpu_load;
 
 /* model */
@@ -242,18 +205,6 @@ static bqueue_t nn_input_queue;
  /* nn output buffers */
 static uint8_t nn_output_buffers[2][NN_BUFFER_OUT_SIZE_ALIGN] ALIGN_32;
 static bqueue_t nn_output_queue;
-
- /* rtos */
-static StaticTask_t nn_thread;
-static StackType_t nn_thread_stack[2 * configMINIMAL_STACK_SIZE];
-static StaticTask_t pp_thread;
-static StackType_t pp_thread_stack[2 *configMINIMAL_STACK_SIZE];
-static StaticTask_t dp_thread;
-static StackType_t dp_thread_stack[2 *configMINIMAL_STACK_SIZE];
-static StaticTask_t isp_thread;
-static StackType_t isp_thread_stack[2 *configMINIMAL_STACK_SIZE];
-static SemaphoreHandle_t isp_sem;
-static StaticSemaphore_t isp_sem_buffer;
 
 /* tracking state */
 #ifdef TRACKER_MODULE
@@ -424,12 +375,7 @@ static void app_ancillary_pipe_frame_event()
 
 static void app_main_pipe_vsync_event()
 {
-  BaseType_t xHigherPriorityTaskWoken = pdFALSE;
-  int ret;
-
-  ret = xSemaphoreGiveFromISR(isp_sem, &xHigherPriorityTaskWoken);
-  if (ret == pdTRUE)
-    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+  csp_signal_isp_vsync();
 }
 
 static void LCD_init()
@@ -816,14 +762,12 @@ static void inference_run(stai_network *network_instance)
   assert(ret == STAI_SUCCESS);
 }
 
-static void nn_thread_fct(void *arg)
+/* The nn stage, called by the CSP4CMSIS network (CSP/application.cpp):
+   NN_Hardware_Init() once, then NN_Execute_Inference() for each frame. */
+void NN_Hardware_Init(void)
 {
   stai_network_info info;
-  uint32_t nn_period_ms;
-  uint32_t nn_period[2];
   uint8_t *nn_pipe_dst;
-  uint32_t inf_ms;
-  uint32_t ts;
   int ret;
 
   /* initialize runtime */
@@ -841,54 +785,46 @@ static void nn_thread_fct(void *arg)
   assert(info.inputs[0].size_bytes == LL_ATON_NETWORK_IN_1_SIZE_BYTES);
   assert(info.outputs[0].size_bytes == LL_ATON_NETWORK_OUT_1_SIZE_BYTES);
 
-  /*** App Loop ***************************************************************/
-  nn_period[1] = HAL_GetTick();
-
   nn_pipe_dst = bqueue_get_free(&nn_input_queue, 0);
   assert(nn_pipe_dst);
   CAM_NNPipe_Start(nn_pipe_dst, CMW_MODE_CONTINUOUS);
-  while (1)
-  {
-    uint8_t *capture_buffer;
-    uint8_t *output_buffer;
-    stai_ptr inputs[1];
-    stai_ptr outputs[1];
+}
 
-    nn_period[0] = nn_period[1];
-    nn_period[1] = HAL_GetTick();
-    nn_period_ms = nn_period[1] - nn_period[0];
+/* Returns the inference time in ms (the network measures the period). */
+uint32_t NN_Execute_Inference(void)
+{
+  uint8_t *capture_buffer;
+  uint8_t *output_buffer;
+  stai_ptr inputs[1];
+  stai_ptr outputs[1];
+  uint32_t inf_ms;
+  uint32_t ts;
+  int ret;
 
-    capture_buffer = bqueue_get_ready(&nn_input_queue);
-    assert(capture_buffer);
-    output_buffer = bqueue_get_free(&nn_output_queue, 1);
-    assert(output_buffer);
+  capture_buffer = bqueue_get_ready(&nn_input_queue);
+  assert(capture_buffer);
+  output_buffer = bqueue_get_free(&nn_output_queue, 1);
+  assert(output_buffer);
 
-    /* run ATON inference */
-    ts = HAL_GetTick();
-    /* Note that we don't need to clean/invalidate those input buffers since they are only access in hardware */
-    inputs[0] = capture_buffer;
-    ret = stai_network_set_inputs(network_ctx, inputs, ARRAY_NB(inputs));
-    assert(ret == STAI_SUCCESS);
-    /* Invalidate output buffer before Hw access it */
-    outputs[0] = output_buffer;
-    CACHE_OP(SCB_InvalidateDCache_by_Addr(output_buffer, LL_ATON_NETWORK_OUT_1_SIZE_BYTES));
-    ret = stai_network_set_outputs(network_ctx, outputs, ARRAY_NB(outputs));
-    assert(ret == STAI_SUCCESS);
-    inference_run(network_ctx);
-    inf_ms = HAL_GetTick() - ts;
+  /* run ATON inference */
+  ts = HAL_GetTick();
+  /* Note that we don't need to clean/invalidate those input buffers since they are only access in hardware */
+  inputs[0] = capture_buffer;
+  ret = stai_network_set_inputs(network_ctx, inputs, ARRAY_NB(inputs));
+  assert(ret == STAI_SUCCESS);
+  /* Invalidate output buffer before Hw access it */
+  outputs[0] = output_buffer;
+  CACHE_OP(SCB_InvalidateDCache_by_Addr(output_buffer, LL_ATON_NETWORK_OUT_1_SIZE_BYTES));
+  ret = stai_network_set_outputs(network_ctx, outputs, ARRAY_NB(outputs));
+  assert(ret == STAI_SUCCESS);
+  inference_run(network_ctx);
+  inf_ms = HAL_GetTick() - ts;
 
-    /* release buffers */
-    bqueue_put_free(&nn_input_queue);
-    bqueue_put_ready(&nn_output_queue);
+  /* release buffers */
+  bqueue_put_free(&nn_input_queue);
+  bqueue_put_ready(&nn_output_queue);
 
-    /* update display stats */
-    ret = xSemaphoreTake(disp.lock, portMAX_DELAY);
-    assert(ret == pdTRUE);
-    disp.info.inf_ms = inf_ms;
-    disp.info.nn_period_ms = nn_period_ms;
-    ret = xSemaphoreGive(disp.lock);
-    assert(ret == pdTRUE);
-  }
+  return inf_ms;
 }
 
 #ifdef TRACKER_MODULE
@@ -1030,77 +966,72 @@ static int app_tracking(mpe_pp_out_t *pp)
 }
 #endif
 
-static void pp_thread_fct(void *arg)
-{
+/* The pp stage, called by the CSP4CMSIS network: PP_Hardware_Init() once,
+   then PP_Execute_Inference() for each frame, which fills the detection info
+   of *info (the network measures pp_ms and adds the nn stats). */
 #if POSTPROCESS_TYPE == POSTPROCESS_OD_YOLO_V2_UF
-  od_yolov2_pp_static_param_t pp_params;
+static od_yolov2_pp_static_param_t pp_params;
 #elif POSTPROCESS_TYPE == POSTPROCESS_OD_YOLO_V5_UU
-  od_yolov5_pp_static_param_t pp_params;
+static od_yolov5_pp_static_param_t pp_params;
 #elif POSTPROCESS_TYPE == POSTPROCESS_OD_YOLO_V8_UF || POSTPROCESS_TYPE == POSTPROCESS_OD_YOLO_V8_UI
-  od_yolov8_pp_static_param_t pp_params;
+static od_yolov8_pp_static_param_t pp_params;
 #elif POSTPROCESS_TYPE == POSTPROCESS_POSE_YOLO_V8_UF
-  yolov8_pose_pp_static_param_t pp_params;
+static yolov8_pose_pp_static_param_t pp_params;
 #elif POSTPROCESS_TYPE == POSTPROCESS_MPE_YOLO_V8_UF
-  mpe_yolov8_pp_static_param_t pp_params;
+static mpe_yolov8_pp_static_param_t pp_params;
 #else
     #error "PostProcessing type not supported"
 #endif
 #if POSTPROCESS_TYPE == POSTPROCESS_MPE_YOLO_V8_UF
-  mpe_pp_out_t pp_output;
+static mpe_pp_out_t pp_output;
 #else
-  postprocess_out_t pp_output;
+static postprocess_out_t pp_output;
 #endif
-  int tracking_enabled;
-  uint32_t nn_pp[2];
-  stai_network_info info;
-  void *pp_input;
-  int ret;
-  int i;
 
-  (void)tracking_enabled;
+void PP_Hardware_Init(void)
+{
+  stai_network_info info;
+  int ret;
+
   /* setup post process */
   ret = stai_network_get_info(network_ctx, &info);
   assert(ret == STAI_SUCCESS);
   app_postprocess_init(&pp_params, &info);
-  while (1)
-  {
-    uint8_t *output_buffer;
+}
 
-    output_buffer = bqueue_get_ready(&nn_output_queue);
-    assert(output_buffer);
-    pp_input = (void *) output_buffer;
-    pp_output.pOutBuff = NULL;
+void PP_Execute_Inference(display_info_t *info)
+{
+  uint8_t *output_buffer;
+  int tracking_enabled;
+  void *pp_input;
+  int ret;
+  int i;
 
-    nn_pp[0] = HAL_GetTick();
-    ret = app_postprocess_run((void * []){pp_input}, 1, &pp_output, &pp_params);
-    assert(ret == 0);
-    tracking_enabled = app_tracking(&pp_output);
-    nn_pp[1] = HAL_GetTick();
+  output_buffer = bqueue_get_ready(&nn_output_queue);
+  assert(output_buffer);
+  pp_input = (void *) output_buffer;
+  pp_output.pOutBuff = NULL;
 
-    /* update display stats and detection info */
-    ret = xSemaphoreTake(disp.lock, portMAX_DELAY);
-    assert(ret == pdTRUE);
-    disp.info.nb_detect = pp_output.nb_detect;
-    for (i = 0; i < pp_output.nb_detect; i++)
-      disp.info.detects[i] = pp_output.pOutBuff[i];
+  ret = app_postprocess_run((void * []){pp_input}, 1, &pp_output, &pp_params);
+  assert(ret == 0);
+  tracking_enabled = app_tracking(&pp_output);
+
+  /* detection info */
+  info->nb_detect = pp_output.nb_detect;
+  for (i = 0; i < pp_output.nb_detect; i++)
+    info->detects[i] = pp_output.pOutBuff[i];
+  info->tracking_enabled = tracking_enabled;
 #ifdef TRACKER_MODULE
-    disp.info.tracking_enabled = tracking_enabled;
-    disp.info.tboxes_valid_nb = 0;
-    for (i = 0; i < ARRAY_NB(tboxes); i++) {
-      if (!tboxes[i].is_tracking || tboxes[i].tlost_cnt)
-        continue;
-      tbox_to_tbox_info(&tboxes[i], &disp.info.tboxes[disp.info.tboxes_valid_nb]);
-      disp.info.tboxes_valid_nb++;
-    }
-#endif
-    disp.info.pp_ms = nn_pp[1] - nn_pp[0];
-    ret = xSemaphoreGive(disp.lock);
-    assert(ret == pdTRUE);
-
-    bqueue_put_free(&nn_output_queue);
-    /* It's possible xqueue is empty if display is slow. So don't check error code that may by pdFALSE in that case */
-    xSemaphoreGive(disp.update);
+  info->tboxes_valid_nb = 0;
+  for (i = 0; i < ARRAY_NB(tboxes); i++) {
+    if (!tboxes[i].is_tracking || tboxes[i].tlost_cnt)
+      continue;
+    tbox_to_tbox_info(&tboxes[i], &info->tboxes[info->tboxes_valid_nb]);
+    info->tboxes_valid_nb++;
   }
+#endif
+
+  bqueue_put_free(&nn_output_queue);
 }
 
 static void dp_update_drawing_area()
@@ -1124,53 +1055,33 @@ static void dp_commit_drawing_area()
   lcd_fg_buffer_rd_idx = 1 - lcd_fg_buffer_rd_idx;
 }
 
-static void dp_thread_fct(void *arg)
+/* The dp stage, called by the CSP4CMSIS network for each frame. */
+void LCD_Render_Frame(display_info_t *info)
 {
-  uint32_t disp_ms = 0;
-  display_info_t info;
+  static uint32_t disp_ms = 0;
   uint32_t ts;
-  int ret;
 
-  while (1)
-  {
-    ret = xSemaphoreTake(disp.update, portMAX_DELAY);
-    assert(ret == pdTRUE);
+  info->disp_ms = disp_ms;
 
-    ret = xSemaphoreTake(disp.lock, portMAX_DELAY);
-    assert(ret == pdTRUE);
-    info = disp.info;
-    ret = xSemaphoreGive(disp.lock);
-    assert(ret == pdTRUE);
-    info.disp_ms = disp_ms;
-
-    ts = HAL_GetTick();
-    dp_update_drawing_area();
-    Display_NetworkOutput(&info);
-    SCB_CleanDCache_by_Addr(lcd_fg_buffer[lcd_fg_buffer_rd_idx], LCD_FG_WIDTH * LCD_FG_HEIGHT* 2);
-    dp_commit_drawing_area();
-    disp_ms = HAL_GetTick() - ts;
-  }
+  ts = HAL_GetTick();
+  dp_update_drawing_area();
+  Display_NetworkOutput(info);
+  SCB_CleanDCache_by_Addr(lcd_fg_buffer[lcd_fg_buffer_rd_idx], LCD_FG_WIDTH * LCD_FG_HEIGHT* 2);
+  dp_commit_drawing_area();
+  disp_ms = HAL_GetTick() - ts;
 }
 
-static void isp_thread_fct(void *arg)
+/* The one-second CPU load last computed by the display; called from the dp stage. */
+float LCD_Get_Cpu_Load(void)
 {
-  int ret;
+  float cpu_load_one_second;
 
-  while (1) {
-    ret = xSemaphoreTake(isp_sem, portMAX_DELAY);
-    assert(ret == pdTRUE);
-
-    CAM_IspUpdate();
-  }
+  cpuload_get_info(&cpu_load, NULL, &cpu_load_one_second, NULL);
+  return cpu_load_one_second;
 }
 
 void app_run()
 {
-  UBaseType_t isp_priority = FREERTOS_PRIORITY(2);
-  UBaseType_t pp_priority = FREERTOS_PRIORITY(-2);
-  UBaseType_t dp_priority = FREERTOS_PRIORITY(-2);
-  UBaseType_t nn_priority = FREERTOS_PRIORITY(1);
-  TaskHandle_t hdl;
   int ret;
 
   printf("========================================\n");
@@ -1216,30 +1127,11 @@ void app_run()
   /*** Camera Init ************************************************************/  
   CAM_Init();
 
-  /* sems + mutex init */
-  isp_sem = xSemaphoreCreateCountingStatic(1, 0, &isp_sem_buffer);
-  assert(isp_sem);
-  disp.update = xSemaphoreCreateCountingStatic(1, 0, &disp.update_buffer);
-  assert(disp.update);
-  disp.lock = xSemaphoreCreateMutexStatic(&disp.lock_buffer);
-  assert(disp.lock);
-
   /* Start LCD Display camera pipe stream */
   CAM_DisplayPipe_Start(lcd_bg_buffer[0], CMW_MODE_CONTINUOUS);
 
-  /* threads init */
-  hdl = xTaskCreateStatic(nn_thread_fct, "nn", configMINIMAL_STACK_SIZE * 2, NULL, nn_priority, nn_thread_stack,
-                          &nn_thread);
-  assert(hdl != NULL);
-  hdl = xTaskCreateStatic(pp_thread_fct, "pp", configMINIMAL_STACK_SIZE * 2, NULL, pp_priority, pp_thread_stack,
-                          &pp_thread);
-  assert(hdl != NULL);
-  hdl = xTaskCreateStatic(dp_thread_fct, "dp", configMINIMAL_STACK_SIZE * 2, NULL, dp_priority, dp_thread_stack,
-                          &dp_thread);
-  assert(hdl != NULL);
-  hdl = xTaskCreateStatic(isp_thread_fct, "isp", configMINIMAL_STACK_SIZE * 2, NULL, isp_priority, isp_thread_stack,
-                          &isp_thread);
-  assert(hdl != NULL);
+  /* The CSP4CMSIS process network (CSP/application.cpp) replaces the isp, nn, pp and dp threads */
+  csp_app_main_init();
 }
 
 int CMW_CAMERA_PIPE_FrameEventCallback(uint32_t pipe)
