@@ -71,7 +71,11 @@ uint32_t TIM4_Get_Value(void);
 #define configSUPPORT_STATIC_ALLOCATION          1
 #define configSUPPORT_DYNAMIC_ALLOCATION         0
 #define configUSE_IDLE_HOOK                      0
+#if defined(CSP4CMSIS_TRACE)
+#define configUSE_TICK_HOOK                      1   /* trace heartbeat (CSP/csp_trace_board.c) */
+#else
 #define configUSE_TICK_HOOK                      0
+#endif
 #define configCPU_CLOCK_HZ                       ( SystemCoreClock )
 #define configTICK_RATE_HZ                       ((TickType_t)1000)
 #define configMAX_PRIORITIES                     ( 56 )
@@ -177,6 +181,15 @@ header file. */
 /* Section where parameter definitions can be added (for instance, to override default ones in FreeRTOS.h) */
 #define configINCLUDE_FREERTOS_TASK_C_ADDITIONS_H 1
 #define FREERTOS_TASKS_C_ADDITIONS_INIT freertos_libc_init
+
+/* Thread events for CSP4CMSIS's RAM trace ring (csp/csp_trace_ring.h), component 0x51.
+   Compiler only: the assembler never sees them (GCC defines __GNUC__ for .s files too). */
+#if defined(CSP4CMSIS_TRACE) && !defined(__ASSEMBLER__) && (defined(__ICCARM__) || defined(__ARMCC_VERSION) || defined(__GNUC__))
+#include "csp/csp_trace_ring.h"
+#define traceTASK_CREATE( pxNewTCB )  csp_trace_task_create( ( pxNewTCB ), ( pxNewTCB )->pcTaskName, ( pxNewTCB )->uxPriority )
+#define traceTASK_SWITCHED_IN()       csp_trace_task_switched_in( pxCurrentTCB )
+#define traceTASK_SWITCHED_OUT()      csp_trace_task_switched_out( pxCurrentTCB )
+#endif
 /* USER CODE END Defines */
 
 #endif /* __FREERTOS_CONFIG_H */
