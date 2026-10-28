@@ -40,6 +40,31 @@ char *__env[1] = { 0 };
 char **environ = __env;
 
 
+/* Standard _sbrk implementation for STM32 */
+__attribute__((weak)) void* _sbrk(ptrdiff_t incr)
+{
+  extern char end; /* Symbol defined by the linker script */
+  extern char _eheap; /* End of the heap region, defined by the linker script */
+  static char *heap_end;
+  char *prev_heap_end;
+
+  if (heap_end == 0)
+  {
+    heap_end = &end;
+  }
+
+  if (incr > &_eheap - heap_end)
+  {
+    errno = ENOMEM;
+    return (void *)-1;
+  }
+
+  prev_heap_end = heap_end;
+  heap_end += incr;
+
+  return (void *)prev_heap_end;
+}
+
 /* Functions */
 void initialise_monitor_handles()
 {

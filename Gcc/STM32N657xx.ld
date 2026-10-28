@@ -8,7 +8,7 @@ _fsbl_start_address = 0x34180000;
 _estack = ORIGIN(AXISRAM1_2_S) + LENGTH(AXISRAM1_2_S); /* end of "AXISRAM1_2_S" Ram type memory */
 _sstack = _estack - _Min_Stack_Size;
 
-_Min_Heap_Size = 0x200; /* required amount of heap  */
+_Min_Heap_Size = 0x1000; /* required amount of heap: the newlib heap, bounded by _eheap (syscalls.c _sbrk) */
 _Min_Stack_Size = 0x1000; /* required amount of stack */
 
 /* Memories definition */
@@ -148,6 +148,7 @@ SECTIONS
     PROVIDE ( end = . );
     PROVIDE ( _end = . );
     . = . + _Min_Heap_Size;
+    PROVIDE ( _eheap = . ); /* end of the heap: _sbrk() fails beyond it */
     . = . + _Min_Stack_Size;
     . = ALIGN(8);
   } >AXISRAM1_2_S
