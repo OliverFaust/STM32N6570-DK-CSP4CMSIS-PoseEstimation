@@ -36,6 +36,8 @@ STMicroelectronics. ST's README follows [below](#sts-readme), unchanged.
   the ring out, and CSP4CMSIS's tools decode it and check it against the
   library's formal models.
 - **Tools** (`CSP/tools/`) for running and tracing in development boot.
+- **The network explained:** [`CSP/README.md`](CSP/README.md) describes the
+  design, the measured behaviour, stack occupancy and troubleshooting.
 
 The library is the git submodule `Lib/CSP4CMSIS`, on CSP4CMSIS's
 `dev/tracing` branch. That branch is not a release: its API is identical to
